@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 const products = [
   {id:1,name:'Premium Basmati Rice',brand:'BS Select',category:'Staples',unit:'5 kg',retail:449,wholesale:415,tag:'Bestseller',emoji:'🍚'},
@@ -34,6 +34,12 @@ export default function App() {
   const [cartOpen,setCartOpen] = useState(false)
   const [dialog,setDialog] = useState('')
   const [notice,setNotice] = useState('')
+  const [wishlist,setWishlist] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('bs-wishlist') || '[]') } catch { return [] }
+  })
+
+  useEffect(() => { localStorage.setItem('bs-wishlist', JSON.stringify(wishlist)) }, [wishlist])
+  useEffect(() => { localStorage.setItem('bs-cart', JSON.stringify(cart)) }, [cart])
 
   const price = p => mode === 'retail' ? p.retail : p.wholesale
   const visible = useMemo(() => {
@@ -51,9 +57,13 @@ export default function App() {
       const next = {...old}
       next[id] = Math.max(0,(next[id]||0)+delta)
       if(!next[id]) delete next[id]
-      localStorage.setItem('bs-cart',JSON.stringify(next))
       return next
     })
+  }
+  function toggleWishlist(p) {
+    setWishlist(old => old.includes(p.id) ? old.filter(id => id !== p.id) : [...old, p.id])
+    setNotice(wishlist.includes(p.id) ? 'Removed from wishlist' : 'Saved to wishlist')
+    setTimeout(()=>setNotice(''),1800)
   }
   function add(p) {
     updateCart(p.id,1)
@@ -66,7 +76,7 @@ export default function App() {
     <header className="header">
       <a className="brand" href="#"><span className="brand-mark">BS</span><span><b>BS STORE</b><small>by Bansal Store</small></span></a>
       <div className="search"><select aria-label="Search category" value={category} onChange={e=>setCategory(e.target.value)}>{categories.map(c=><option key={c}>{c}</option>)}</select><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search groceries, brands and daily essentials…"/><button onClick={()=>document.querySelector('.catalog')?.scrollIntoView({behavior:'smooth'})}>⌕</button></div>
-      <div className="header-actions"><button onClick={()=>setDialog('account')}>♙ <span>Account</span></button><button onClick={()=>setDialog('orders')}>▤ <span>Orders</span></button><button className="cart-button" onClick={()=>setCartOpen(true)}>🛒 <span>Cart</span><i>{count}</i></button></div>
+      <div className="header-actions"><button onClick={()=>setDialog('account')}>♙ <span>Account</span></button><button onClick={()=>setDialog('orders')}>▤ <span>Orders</span></button><button onClick={()=>setDialog('wishlist')}>♡ <span>Saved</span><i>{wishlist.length}</i></button><button className="cart-button" onClick={()=>setCartOpen(true)}>🛒 <span>Cart</span><i>{count}</i></button></div>
     </header>
     <nav className="nav"><div className="nav-inner"><button onClick={()=>{setCategory('All');setSearch('')}}>☰ All Departments</button>{categories.slice(1).map(c=><button key={c} onClick={()=>setCategory(c)}>{c}</button>)}<span className="nav-deal">Wholesale deals available</span></div></nav>
     <main>
@@ -79,7 +89,7 @@ export default function App() {
       <section className="category-section"><div className="section-heading"><div><span className="eyebrow">BROWSE BY DEPARTMENT</span><h2>Shop popular categories</h2></div></div><div className="category-grid">{[{n:'Staples',e:'🌾',d:'Rice, atta, pulses & more'},{n:'Snacks',e:'🍪',d:'Biscuits, chips & treats'},{n:'Beverages',e:'🧃',d:'Tea, drinks & refreshments'},{n:'Dry Fruits',e:'🥜',d:'Nuts & premium picks'},{n:'Personal Care',e:'🧴',d:'Daily care essentials'},{n:'Household',e:'🧽',d:'Cleaning & home care'},{n:'Pet Supplies',e:'🐾',d:'Everyday pet needs'}].map(c=><button className="category-card" key={c.n} onClick={()=>{setCategory(c.n);document.querySelector('.catalog')?.scrollIntoView({behavior:'smooth'})}}><span>{c.e}</span><b>{c.n}</b><small>{c.d}</small></button>)}</div></section>
       <section className="catalog">
         <div className="section-heading"><div><span className="eyebrow">HANDPICKED FOR YOU</span><h2>{category==='All'?'Popular products':category}</h2><p>{visible.length} products to explore</p></div><select className="sort" value={sort} onChange={e=>setSort(e.target.value)}><option value="featured">Featured</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option></select></div>
-        <div className="product-grid">{visible.map(p=><article className="product-card" key={p.id}><div className="product-image"><span className="product-emoji">{p.emoji}</span>{p.tag&&<label>{p.tag}</label>}<button className="heart" onClick={()=>setNotice('Wishlist preview — sign-in will be added in a later release')} aria-label="Add to wishlist">♡</button></div><div className="product-info"><small>{p.brand} · {p.category}</small><h3>{p.name}</h3><p>{p.unit}</p><div className="price-line"><strong>{money(price(p))}</strong>{mode==='wholesale'&&<del>{money(p.retail)}</del>}</div><button className="add-button" onClick={()=>add(p)}>＋ Add to cart</button></div></article>)}</div>
+        <div className="product-grid">{visible.map(p=><article className="product-card" key={p.id}><div className="product-image"><span className="product-emoji">{p.emoji}</span>{p.tag&&<label>{p.tag}</label>}<button className={'heart '+(wishlist.includes(p.id)?'saved':'')} onClick={()=>toggleWishlist(p)} aria-label={wishlist.includes(p.id)?'Remove from wishlist':'Add to wishlist'}>{wishlist.includes(p.id)?'♥':'♡'}</button></div><div className="product-info"><small>{p.brand} · {p.category}</small><h3>{p.name}</h3><p>{p.unit}</p><div className="price-line"><strong>{money(price(p))}</strong>{mode==='wholesale'&&<del>{money(p.retail)}</del>}</div><button className="add-button" onClick={()=>add(p)}>＋ Add to cart</button></div></article>)}</div>
         {!visible.length&&<div className="empty">No matching products. Try another search or category.</div>}
       </section>
       <section className="business-banner"><div><span className="eyebrow">FOR SHOPKEEPERS & BULK BUYERS</span><h2>Buying for your business?</h2><p>Switch to wholesale mode to explore business-friendly prices on selected products.</p></div><button className="primary" onClick={()=>{setMode('wholesale');document.querySelector('.catalog')?.scrollIntoView({behavior:'smooth'})}}>Explore wholesale <b>→</b></button></section>
@@ -87,7 +97,7 @@ export default function App() {
     <footer><div className="footer-brand"><span className="brand-mark">BS</span><div><b>BS STORE</b><small>Bansal Store · Retail & Wholesale Grocery</small></div></div><p>Everyday essentials for homes and businesses.</p><small>© {new Date().getFullYear()} BS Store. Product list and prices shown are sample data for this prototype.</small></footer>
 
     {notice&&<div className="toast">{notice}</div>}
-    {cartOpen&&<div className="overlay" onClick={()=>setCartOpen(false)}><aside className="drawer" onClick={e=>e.stopPropagation()}><div className="drawer-head"><h2>Your cart <span>({count})</span></h2><button onClick={()=>setCartOpen(false)}>✕</button></div>{!cartItems.length?<div className="empty">Your cart is empty. Add a few essentials to get started.</div>:<>{cartItems.map(p=><div className="cart-row" key={p.id}><span className="cart-emoji">{p.emoji}</span><div className="cart-detail"><b>{p.name}</b><small>{p.unit} · {money(price(p))}</small><div className="qty"><button onClick={()=>updateCart(p.id,-1)}>−</button><span>{cart[p.id]}</span><button onClick={()=>updateCart(p.id,1)}>＋</button></div></div><strong>{money(price(p)*cart[p.id])}</strong></div>)}<div className="cart-total"><span>Estimated total</span><b>{money(total)}</b></div><button className="primary checkout" onClick={()=>setDialog('checkout')}>Continue to checkout →</button><small className="fine-print">Demo only: checkout and order placement are not connected to a backend.</small></>}</aside></div>}
-    {dialog&&<div className="overlay" onClick={()=>setDialog('')}><div className="modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setDialog('')}>✕</button><span className="eyebrow">BS STORE</span><h2>{dialog==='account'?'Customer account':dialog==='orders'?'Your orders':dialog==='checkout'?'Checkout preview':'Welcome'}</h2>{dialog==='account'?<><p>Customer sign-in and registration will be connected after secure backend setup.</p><label>Email or mobile number</label><input placeholder="Enter email or mobile number" disabled/><button className="primary full" disabled>Continue (coming soon)</button></>:dialog==='orders'?<p>Your order history will appear here after customer accounts and order processing are connected.</p>:<><p>Your cart contains {count} item(s), with an estimated total of <b>{money(total)}</b>.</p><p>Online payments, delivery details and order confirmation are not active in this preview.</p></>}<button className="secondary full" onClick={()=>setDialog('')}>Close</button></div></div>}
+    {cartOpen&&<div className="overlay" onClick={()=>setCartOpen(false)}><aside className="drawer" onClick={e=>e.stopPropagation()}><div className="drawer-head"><h2>Your cart <span>({count})</span></h2><button onClick={()=>setCartOpen(false)}>✕</button></div>{!cartItems.length?<div className="empty">Your cart is empty. Add a few essentials to get started.</div>:<>{cartItems.map(p=><div className="cart-row" key={p.id}><span className="cart-emoji">{p.emoji}</span><div className="cart-detail"><b>{p.name}</b><small>{p.unit} · {money(price(p))}</small><div className="qty"><button onClick={()=>updateCart(p.id,-1)}>−</button><span>{cart[p.id]}</span><button onClick={()=>updateCart(p.id,1)}>＋</button></div></div><strong>{money(price(p)*cart[p.id])}</strong></div>)}<div className="cart-total"><span>Estimated total</span><b>{money(total)}</b></div><button className="clear-cart" onClick={()=>setCart({})}>Clear cart</button><button className="primary checkout" onClick={()=>setDialog('checkout')}>Continue to checkout →</button><small className="fine-print">Demo only: checkout and order placement are not connected to a backend.</small></>}</aside></div>}
+    {dialog&&<div className="overlay" onClick={()=>setDialog('')}><div className="modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setDialog('')}>✕</button><span className="eyebrow">BS STORE</span><h2>{dialog==='account'?'Customer account':dialog==='orders'?'Your orders':dialog==='wishlist'?'Saved items':'Checkout preview'}</h2>{dialog==='wishlist'?<>{wishlist.length ? <div className="saved-list">{products.filter(p=>wishlist.includes(p.id)).map(p=><div className="saved-row" key={p.id}><span>{p.emoji}</span><div><b>{p.name}</b><small>{p.unit} · {money(price(p))}</small></div><button onClick={()=>add(p)}>Add</button><button onClick={()=>toggleWishlist(p)}>Remove</button></div>)}</div> : <p>Your saved products will appear here. Tap the heart on a product to save it.</p>}</>:dialog==='account'?<><p>Customer sign-in and registration will be connected after secure backend setup.</p><label>Email or mobile number</label><input placeholder="Enter email or mobile number" disabled/><button className="primary full" disabled>Continue (coming soon)</button></>:dialog==='orders'?<p>Your order history will appear here after customer accounts and order processing are connected.</p>:<><p>Your cart contains {count} item(s), with an estimated total of <b>{money(total)}</b>.</p><p>Online payments, delivery details and order confirmation are not active in this preview.</p></>}<button className="secondary full" onClick={()=>setDialog('')}>Close</button></div></div>}
   </div>
 }
